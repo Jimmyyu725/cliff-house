@@ -1,106 +1,100 @@
-const sidebarWidths = [74, 58, 82, 66, 71, 54];
-const articleWidths = [100, 97, 94, 98, 86];
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { ArrowDown, ArrowUpRight, Expand, Moon, Sun, Sunset, Volume2, VolumeX, X, Mountain, MoveUpRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { scenes, type SceneKey } from '@/lib/scene';
 
 export default function Home() {
+  const [scene, setScene] = useState<SceneKey>('golden');
+  const [immersive, setImmersive] = useState(false);
+  const [close, setClose] = useState(false);
+  const [sound, setSound] = useState(false);
+  const [notice, setNotice] = useState('');
+  const audio = useRef<AudioContext | null>(null);
+  const enterButton = useRef<HTMLButtonElement | null>(null);
+  const exitButton = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (immersive) exitButton.current?.focus();
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setImmersive(false); enterButton.current?.focus(); }
+    };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [immersive]);
+  useEffect(() => () => { void audio.current?.close(); }, []);
+
+  async function toggleSound() {
+    try {
+      if (sound) { await audio.current?.suspend(); setSound(false); return; }
+      if (!audio.current) {
+        const context = new AudioContext();
+        audio.current = context;
+        const buffer = context.createBuffer(1, context.sampleRate * 8, context.sampleRate);
+        const data = buffer.getChannelData(0);
+        let previous = 0;
+        for (let i = 0; i < data.length; i++) {
+          previous = (previous + (Math.random() * 2 - 1) * 0.02) / 1.02;
+          data[i] = previous * 3.5;
+        }
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        const filter = context.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 650;
+        const gain = context.createGain(); gain.gain.value = 0.2;
+        const swell = context.createOscillator(); swell.frequency.value = 0.12;
+        const depth = context.createGain(); depth.gain.value = 0.09;
+        swell.connect(depth).connect(gain.gain);
+        source.connect(filter).connect(gain).connect(context.destination);
+        source.start(); swell.start();
+      }
+      await audio.current.resume();
+      setSound(true); setNotice('');
+    } catch { setNotice('声音未启动，请再次点击重试。'); }
+  }
+
   return (
-    <main className="fixed inset-0 overflow-hidden bg-[#fbfaf8] text-zinc-900">
-      <header
-        aria-hidden="true"
-        className="grid h-[76px] grid-cols-[1fr_auto_1fr] items-center border-b border-stone-200 bg-white/95 px-6 sm:px-14"
-      >
-        <div className="flex items-center gap-3">
-          <span className="h-9 w-9 rounded-full bg-stone-100" />
-          <span className="h-3.5 w-28 rounded-full bg-stone-100" />
+    <main>
+      <section id="home" className={`experience ${immersive ? 'immersive' : ''}`} data-scene={scene} aria-label="悬崖小屋建筑渲染">
+        <div className={`scene-image ${close ? 'close-view' : ''}`} style={{ filter: scenes[scene].filter }}>
+          <img src="/cliff-house.png" alt="一间亮着暖光的木屋伫立在草坡与悬崖边，面向辽阔的大海和落日" fetchPriority="high" />
         </div>
-        <span className="hidden h-9 w-[min(30vw,420px)] rounded-xl bg-stone-100 sm:block" />
-        <div className="flex items-center justify-end gap-3">
-          <span className="hidden h-9 w-9 rounded-full bg-stone-100 sm:block" />
-          <span className="h-9 w-24 rounded-xl bg-stone-100" />
-        </div>
-      </header>
-
-      <div
-        aria-hidden="true"
-        className="grid h-[calc(100%-76px)] grid-cols-[180px_minmax(0,1fr)_260px] gap-10 px-6 pb-24 pt-10 opacity-55 max-lg:grid-cols-[150px_minmax(0,1fr)] max-sm:grid-cols-1 sm:px-14"
-      >
-        <aside className="hidden border-r border-stone-200 pr-7 sm:block">
-          <div className="mb-6 h-2.5 w-16 rounded-full bg-stone-200" />
-          <div className="space-y-4">
-            {sidebarWidths.map((width) => (
-              <div key={width} className="flex items-center gap-3">
-                <span className="h-4 w-4 rounded bg-stone-200" />
-                <span
-                  className="h-2.5 rounded-full bg-stone-200"
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-            ))}
+        <div className="scene-shade" />
+        <div className="blue-tint" aria-hidden="true" />
+        <div className="interface" inert={immersive}>
+          <header className="site-header">
+            <a className="brand" href="#home" aria-label="崖居首页"><Mountain size={30} strokeWidth={1.1} /><span>崖居<small>CLIFF HOUSE</small></span></a>
+            <nav aria-label="主导航"><a className="active" href="#home">一间小屋</a><a href="#concept">关于设计 <ArrowUpRight size={13} /></a></nav>
+            <span className="edition">独处计划 <span>—</span> NO. 001</span>
+          </header>
+          <div className="hero-copy">
+            <div className="eyebrow"><span /> BETWEEN LAND & SEA</div>
+            <h1>在世界边缘，<br />安放日常<span>。</span></h1>
+            <p>把喧嚣留在身后。<br />在一间小房子里，听见一整片海。</p>
+            <Button ref={enterButton} className="enter-button" onClick={() => setImmersive(true)}>进入静谧 <ArrowUpRight size={18} /></Button>
+            <span className="experience-note">一场关于栖居的建筑白日梦</span>
           </div>
-          <div className="mb-6 mt-9 h-2.5 w-24 rounded-full bg-stone-200" />
-          <div className="space-y-4">
-            {sidebarWidths.slice(0, 3).map((width) => (
-              <span
-                key={width}
-                className="block h-2.5 rounded-full bg-stone-200"
-                style={{ width: `${width}%` }}
-              />
-            ))}
-          </div>
-        </aside>
-
-        <article className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-          <div className="space-y-3">
-            <div className="h-2.5 w-28 rounded-full bg-stone-200" />
-            <div className="h-7 w-4/5 rounded-lg bg-stone-200" />
-            <div className="h-7 w-3/5 rounded-lg bg-stone-200" />
-          </div>
-          <div className="min-h-[240px] flex-1 rounded-2xl bg-stone-200" />
-          <div className="flex items-center gap-3">
-            <span className="h-9 w-9 rounded-full bg-stone-200" />
-            <span className="h-2.5 w-28 rounded-full bg-stone-200" />
-          </div>
-          <div className="space-y-2">
-            {articleWidths.map((width) => (
-              <span
-                key={width}
-                className="block h-2.5 rounded-full bg-stone-200"
-                style={{ width: `${width}%` }}
-              />
-            ))}
-          </div>
-        </article>
-
-        <aside className="space-y-5 max-lg:hidden">
-          {[0, 1].map((card) => (
-            <div
-              key={card}
-              className="space-y-4 rounded-2xl border border-stone-200 bg-white/70 p-6"
-            >
-              <span className="block h-10 w-10 rounded-full bg-stone-200" />
-              <span className="block h-3 w-3/5 rounded-full bg-stone-200" />
-              <span className="block h-2.5 w-full rounded-full bg-stone-200" />
-              <span className="block h-2.5 w-4/5 rounded-full bg-stone-200" />
-              <span className="block h-8 w-24 rounded-lg bg-stone-200" />
+          <div className="side-note"><span>01 / 01</span><i /><span>THE ART OF SLOW LIVING</span></div>
+          <div className="bottom-bar">
+            <a className="discover" href="#concept"><span className="round-icon"><ArrowDown size={17} /></span><span>向自然，靠近一点<small>SCROLL TO DISCOVER</small></span></a>
+            <div className="light-control" role="group" aria-label="选择光影氛围">
+              <span className="control-label">光影时刻</span>
+              {([{key:'day',icon:Sun},{key:'golden',icon:Sunset},{key:'blue',icon:Moon}] as const).map(({key,icon:Icon}) => <Button key={key} variant="ghost" className={`light-button ${scene === key ? 'selected' : ''}`} aria-pressed={scene === key} onClick={() => setScene(key)}><Icon size={15} />{scenes[key].label}</Button>)}
             </div>
-          ))}
-        </aside>
-      </div>
-
-      <output
-        aria-live="polite"
-        aria-atomic="true"
-        className="absolute left-1/2 top-[clamp(96px,13vh,122px)] w-[min(620px,calc(100%-40px))] -translate-x-1/2 rounded-[18px] border border-stone-200 bg-white/95 px-5 py-5 shadow-[0_18px_50px_rgb(24_24_27/9%)] backdrop-blur-sm"
-      >
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-stone-500">
-          Building your site
-        </p>
-        <h1 className="text-xl font-semibold tracking-tight">
-          Your site is taking shape
-        </h1>
-        <p className="mt-1 text-sm text-stone-500">
-          Your first version will appear here automatically when it’s ready.
-        </p>
-      </output>
+            <div className="view-controls"><Button variant="ghost" className="icon-button" aria-label={close ? '切换全景构图' : '放大小屋构图'} aria-pressed={close} onClick={() => setClose(!close)}><Expand size={18} /></Button><Button variant="ghost" className="sound-button" aria-label={sound ? '关闭海浪氛围音' : '播放合成海浪氛围音'} aria-pressed={sound} onClick={toggleSound}>{sound ? <Volume2 size={17} /> : <VolumeX size={17} />}<span>海的声音</span></Button></div>
+          </div>
+        </div>
+        {immersive && <div className="immersive-controls"><span>此刻，只剩下你与海。</span><Button ref={exitButton} className="exit-button" onClick={() => {setImmersive(false); requestAnimationFrame(() => enterButton.current?.focus());}}><X size={16} />退出沉浸 <kbd>ESC</kbd></Button></div>}
+        <output className="sr-only" aria-live="polite">{scenes[scene].label}氛围，{close ? '近景' : '全景'}构图。{notice}</output>
+        {notice && <p className="notice" role="status">{notice}</p>}
+      </section>
+      <section id="concept" className="concept">
+        <div className="concept-heading"><span className="section-index">001 / 栖居的想象</span><h2>房子很小。<br />生活，可以很辽阔。</h2><p>一面山崖，一片海，一扇始终朝向光的窗。<br />让建筑退后，让自然成为空间的主角。</p><a href="#home">回到海边 <MoveUpRight size={18} /></a></div>
+        <div className="concept-details"><span className="eyebrow">A QUIET PLACE TO BE</span><p>木的温度，石的质感，<br />以及不需要被填满的留白。</p><dl><div><dt>建筑语言</dt><dd>原木 · 玻璃 · 深色金属</dd></div><div><dt>场景设定</dt><dd>海岸悬崖 / 独处小屋</dd></div><div><dt>光影体验</dt><dd>日光 · 金色时刻 · 蓝调</dd></div></dl><small>概念建筑渲染 · AI 生成图像 · 光影切换为艺术滤镜</small></div>
+      </section>
+      <footer><a className="footer-brand" href="#home">崖居 <span>CLIFF HOUSE</span></a><p>少一点世界，多一点自己。</p><span>AN ARCHITECTURAL DAYDREAM</span></footer>
     </main>
   );
 }
